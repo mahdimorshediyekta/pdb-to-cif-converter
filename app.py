@@ -5,29 +5,24 @@ from flask_cors import CORS
 import requests as req
 from io import StringIO
 from Bio.PDB import PDBParser, MMCIFIO
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Configuration ---
-# Load Cloudflare secret key from environment variables for security
+# We still load the key, but we won't use it in the modified code.
 CLOUDFLARE_SECRET_KEY = os.environ.get("CLOUDFLARE_SECRET_KEY")
-if not CLOUDFLARE_SECRET_KEY:
-    raise ValueError("CLOUDFLARE_SECRET_KEY environment variable not set.")
 
-# Directory to store temporary converted files
 TEMP_DIR = 'temp_files'
 if not os.path.exists(TEMP_DIR):
     os.makedirs(TEMP_DIR)
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-# Enable CORS to allow your frontend to communicate with this backend
-CORS(app, resources={r"/api/*": {"origins": "*"}}) 
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # --- PDB to CIF Conversion Logic ---
 def convert_pdb_to_cif(pdb_data_string: str, structure_id: str = "protein"):
-    """
-    Converts a PDB file string to a CIF file string using Biopython.
-    Returns the CIF string or None if conversion fails.
-    """
     try:
         pdb_parser = PDBParser(QUIET=True)
         pdb_file = StringIO(pdb_data_string)
@@ -36,7 +31,6 @@ def convert_pdb_to_cif(pdb_data_string: str, structure_id: str = "protein"):
         cif_io = MMCIFIO()
         cif_io.set_structure(structure)
         
-        # Use StringIO to capture the output of save() as a string
         output_cif = StringIO()
         cif_io.save(output_cif)
         return output_cif.getvalue()
@@ -51,19 +45,27 @@ def handle_conversion():
     """
     Handles the main conversion request from the frontend.
     """
-    # 1. Verify Cloudflare Turnstile CAPTCHA
-    turnstile_token = request.form.get('cf-turnstile-response')
-    if not turnstile_token:
-        return jsonify({"success": False, "error": "CAPTCHA token missing."}), 403
+    # ==================== MODIFICATION START ====================
+    # The entire Cloudflare Turnstile section below is commented out for testing.
+    # To re-enable it, simply remove the '#' from the beginning of each line.
+    #
+    # # 1. Verify Cloudflare Turnstile CAPTCHA
+    # turnstile_token = request.form.get('cf-turnstile-response')
+    # if not turnstile_token:
+    #     return jsonify({"success": False, "error": "CAPTCHA token missing."}), 403
+    #
+    # # The check for the secret key is also disabled for now.
+    # if CLOUDFLARE_SECRET_KEY:
+    #     verification_response = req.post(
+    #         "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    #         data={"secret": CLOUDFLARE_SECRET_KEY, "response": turnstile_token},
+    #     )
+    #     outcome = verification_response.json()
+    #
+    #     if not outcome.get("success"):
+    #         return jsonify({"success": False, "error": "CAPTCHA verification failed. Please try again."}), 403
+    # ===================== MODIFICATION END =====================
 
-    verification_response = req.post(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        data={"secret": CLOUDFLARE_SECRET_KEY, "response": turnstile_token},
-    )
-    outcome = verification_response.json()
-
-    if not outcome.get("success"):
-        return jsonify({"success": False, "error": "CAPTCHA verification failed. Please try again."}), 403
 
     # 2. Get PDB data from either file upload or text area
     pdb_data = ""
@@ -103,5 +105,4 @@ def download_converted_file(filename):
 
 # --- Main Entry Point ---
 if __name__ == '__main__':
-    # For local development only. Use Gunicorn in production.
     app.run(port=5000, debug=True)
