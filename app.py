@@ -26,7 +26,7 @@ if not os.path.exists(TEMP_DIR):
 app = Flask(__name__)
 # In production, you might want to restrict origins to your actual frontend domain
 # For example: CORS(app, resources={r"/api/*": {"origins": "https://your-frontend-domain.com"}})
-CORS(app, resources={r"/api/*": {"origins": "*"}}) 
+CORS(app, resources={r"/api/*": {"origins": "https://sciencecodons.com"}}) 
 
 # --- PDB to CIF Conversion Logic ---
 def convert_pdb_to_cif(pdb_data_string: str, structure_id: str = "protein"):
